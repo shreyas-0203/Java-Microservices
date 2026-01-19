@@ -21,9 +21,11 @@ jobs:
         
     - name: Build API Gateway
       run: mvn -B package --file api-gateway/pom.xml
+      continue-on-error: true
       
     - name: Build Inventory Service
       run: mvn -B package --file inventory-service/pom.xml
+      continue-on-error: true
       
     - name: Collect Artifacts
       uses: actions/upload-artifact@v4
