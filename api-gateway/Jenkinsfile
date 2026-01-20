@@ -14,50 +14,35 @@ pipeline {
             }
         }
 
-        stage('Build Services') {
+        stage('Build') {
             steps {
-                script {
-                    def services = ['api-gateway', 'inventory-service']
-
-                    for (svc in services) {
-                        try {
-                            dir(svc) {
-                                if (isUnix()) {
-                                    sh 'mvn -B clean package'
-                                } else {
-                                    bat 'mvn.cmd -B clean package'
-                                }
-                            }
-                        } catch (Exception e) {
-                            echo "${svc} build failed: ${e.message}"
-                            currentBuild.result = 'UNSTABLE'
-                        }
-                    }
-                }
+                bat 'mvn.cmd clean package'
             }
         }
 
-        stage('Collect Artifacts') {
+        stage('SonarQube Analysis') {
             steps {
-                archiveArtifacts artifacts: '**/target/*.jar',
-                                 allowEmptyArchive: true,
-                                 fingerprint: true
+                withSonarQubeEnv('SonarQube') {
+                    bat '''
+                    mvn.cmd sonar:sonar ^
+                    -Dsonar.projectKey=shreyas-org_jenkins-sonar ^
+                    -Dsonar.projectName=Java-Microservices ^
+                    -Dsonar.java.binaries=target
+                    '''
+                }
             }
         }
     }
 
     post {
         always {
-            cleanWs(deleteDirs: true, disableDeferredWipeout: true)
+            cleanWs()
         }
         success {
-            echo 'Build completed successfully!'
-        }
-        unstable {
-            echo 'Build is unstable (some modules failed)'
+            echo 'Build & SonarQube analysis completed successfully'
         }
         failure {
-            echo 'Build failed!'
+            echo 'Pipeline failed'
         }
     }
 }
