@@ -2,11 +2,9 @@ pipeline {
     agent any
     
     tools {
-        maven 'M2'  // Must match name in Jenkins Global Tool Configuration
-        jdk 'JAVA24'       // Must match name in Jenkins Global Tool Configuration
+        maven 'M2'
+        jdk 'JAVA24'
     }
-    
-    
     
     stages {
         stage('Checkout') {
@@ -20,7 +18,12 @@ pipeline {
                 script {
                     try {
                         dir('api-gateway') {
-                            sh 'mvn -B package'
+                            // Detects OS and uses appropriate command
+                            if (isUnix()) {
+                                sh 'mvn -B package'
+                            } else {
+                                bat 'mvn -B package'
+                            }
                         }
                     } catch (Exception e) {
                         echo "API Gateway build failed: ${e.message}"
@@ -35,7 +38,11 @@ pipeline {
                 script {
                     try {
                         dir('inventory-service') {
-                            sh 'mvn -B package'
+                            if (isUnix()) {
+                                sh 'mvn -B package'
+                            } else {
+                                bat 'mvn -B package'
+                            }
                         }
                     } catch (Exception e) {
                         echo "Inventory Service build failed: ${e.message}"
@@ -54,7 +61,7 @@ pipeline {
     
     post {
         always {
-            cleanWs()  // Clean workspace after build
+            cleanWs()
         }
         success {
             echo 'Build completed successfully!'
