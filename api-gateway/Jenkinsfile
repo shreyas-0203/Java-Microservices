@@ -1,76 +1,63 @@
 pipeline {
     agent any
-    
+
     tools {
         maven 'M2'
         jdk 'JAVA24'
     }
-    
+
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
-        
-        stage('Build API Gateway') {
+
+        stage('Build Services') {
             steps {
                 script {
-                    try {
-                        dir('api-gateway') {
-                            // Detects OS and uses appropriate command
-                            if (isUnix()) {
-                                sh 'mvn -B package'
-                            } else {
-                                bat 'mvn -B package'
+                    def services = ['api-gateway', 'inventory-service']
+
+                    for (svc in services) {
+                        try {
+                            dir(svc) {
+                                if (isUnix()) {
+                                    sh 'mvn -B clean package'
+                                } else {
+                                    bat 'mvn.cmd -B clean package'
+                                }
                             }
+                        } catch (Exception e) {
+                            echo "${svc} build failed: ${e.message}"
+                            currentBuild.result = 'UNSTABLE'
                         }
-                    } catch (Exception e) {
-                        echo "API Gateway build failed: ${e.message}"
-                        currentBuild.result = 'UNSTABLE'
                     }
                 }
             }
         }
-        
-        stage('Build Inventory Service') {
-            steps {
-                script {
-                    try {
-                        dir('inventory-service') {
-                            if (isUnix()) {
-                                sh 'mvn -B package'
-                            } else {
-                                bat 'mvn -B package'
-                            }
-                        }
-                    } catch (Exception e) {
-                        echo "Inventory Service build failed: ${e.message}"
-                        currentBuild.result = 'UNSTABLE'
-                    }
-                }
-            }
-        }
-        
+
         stage('Collect Artifacts') {
             steps {
-                archiveArtifacts artifacts: '**/target/*.jar', allowEmptyArchive: true, fingerprint: true
+                archiveArtifacts artifacts: '**/target/*.jar',
+                                 allowEmptyArchive: true,
+                                 fingerprint: true
             }
         }
     }
-    
+
     post {
         always {
-            cleanWs()
+            cleanWs(deleteDirs: true, disableDeferredWipeout: true)
         }
         success {
             echo 'Build completed successfully!'
         }
-        failure {
-            echo 'Build failed!'
-        }
         unstable {
             echo 'Build is unstable (some modules failed)'
+        }
+        failure {
+            echo 'Build failed!'
         }
     }
 }
