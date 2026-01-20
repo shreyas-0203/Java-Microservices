@@ -1,69 +1,52 @@
 pipeline {
     agent any
-    
+
     tools {
-        maven 'M2'  // Must match name in Jenkins Global Tool Configuration
-        jdk 'JAVA17'       // Must match name in Jenkins Global Tool Configuration
+        maven 'M2'
+        jdk 'JAVA24'
     }
-    
-    
-    
+
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
-        
+
         stage('Build API Gateway') {
             steps {
-                script {
-                    try {
-                        dir('api-gateway') {
-                            sh 'mvn -B package'
-                        }
-                    } catch (Exception e) {
-                        echo "API Gateway build failed: ${e.message}"
-                        currentBuild.result = 'UNSTABLE'
-                    }
+                dir('api-gateway') {
+                    bat 'mvn.cmd clean package'
                 }
             }
         }
-        
-        stage('Build Inventory Service') {
+
+        stage('SonarQube API Gateway') {
             steps {
-                script {
-                    try {
-                        dir('inventory-service') {
-                            sh 'mvn -B package'
-                        }
-                    } catch (Exception e) {
-                        echo "Inventory Service build failed: ${e.message}"
-                        currentBuild.result = 'UNSTABLE'
+                withSonarQubeEnv('SonarQube') {
+                    dir('api-gateway') {
+                        bat '''
+                        mvn.cmd sonar:sonar ^
+                        -Dsonar.projectKey=api-gateway ^
+                        -Dsonar.projectName=API-Gateway ^
+                        -Dsonar.java.binaries=target
+                        '''
                     }
                 }
-            }
-        }
-        
-        stage('Collect Artifacts') {
-            steps {
-                archiveArtifacts artifacts: '**/target/*.jar', allowEmptyArchive: true, fingerprint: true
             }
         }
     }
-    
+
     post {
         always {
-            cleanWs()  // Clean workspace after build
+            cleanWs()
         }
         success {
-            echo 'Build completed successfully!'
+            echo 'API Gateway build & SonarQube analysis completed successfully'
         }
         failure {
-            echo 'Build failed!'
-        }
-        unstable {
-            echo 'Build is unstable (some modules failed)'
+            echo 'Pipeline failed'
         }
     }
 }
