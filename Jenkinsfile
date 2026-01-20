@@ -13,15 +13,7 @@ pipeline {
                 checkout scm
             }
         }
-
-        stage('Build API Gateway') {
-            steps {
-                dir('api-gateway') {
-                    bat 'mvn.cmd clean package'
-                }
-            }
-        }
-
+        
         stage('SonarQube API Gateway') {
             steps {
                 withSonarQubeEnv('SonarQube') {
